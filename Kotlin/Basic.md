@@ -86,84 +86,104 @@
   }
   ```
 
----
+## 범위 함수
 
-# 클래스
-
-## 속성의 getter 함수와 setter 함수
-
-- 컴파일러가 내부적으로 생성하는 기본 getter, setter
-
-```kotlin
-var speakerVolume = 2
-    get() = field
-    set(value) {
-        field = value
+- 개발자가 객체의 이름을 참조하지 않고도 객체의 속성 및 메서드에 접근할 수 있는 고차 함수
+- 전달된 함수의 본문이 범위 함수가 호출되는 객체의 범위를 가져오기 때문에 범위 함수라고 함
+- 객체 이름을 생략할 수 있어 코드를 더 쉽게 읽을 수 있음
+- 종류
+  - `.let()`: 식별자 `it`을 사용하여 람다 표현식의 객체를 참조, 길고 구체적인 객체 이름을 반복적으로 사용하지 않아도 됨
+    ```kotlin
+    question1.let {
+      println(it.questionText)
+      println(it.answer)
+      println(it.difficulty)
     }
-```
+    ```
+  - `.apply()`: 객체가 변수에 할당되기도 전에 객체의 메서드를 호출, 변수에 저장될 수 있도록 해당 객체의 참조를 반환함
+    ```kotlin
+    val quiz = Quiz().apply {
+    printQuiz()
+    }
+    ```
 
-- val로 선언한 경우 setter가 없음
-- 반환 값을 항상 대문자로 변환해서 반환해야 하는 등 값 반환 시 처리가 필요한 경우 getter 함수에서 처리
-- 속성 값 변경 시 범위를 확인해야 하는 등 값 변경 시 처리가 필요한 경우 setter 함수에서 처리(공개 상태만 설정하고 작업이 없을 경우 `protected set`처럼 써도 됨)
-- 기본적으로 속성에 내부적으로 정의된 클래스 변수인 지원 필드를 사용하여 메모리에 값을 보유함
-- getter는 지원 필드의 값을 읽고, setter는 지원 필드의 값을 변경함(위 예제의 `field`)
-- 위 예제에서 `field = value`가 아닌 `speakerVolume = value`로 지정할 경우, setter가 반복적으로 호출되어 무한 루프가 발생하므로 주의
+## 컬렉션을 사용한 고차 함수
 
-## `open` 키워드
+- `groupBy(람다 표현식)`
 
-- 다른 클래스가 해당 클래스/함수를 확장할 수 있음
-
-## 공개 상태 수정자
-
-- `public`: 기본값, 모든 위치에서 접근 가능
-- `internal`: 동일한 모듈에서 접근 가능
-- `protected`: 하위 클래스에서 접근 가능
-- `private`: 동일한 클래스에서 접근 가능
-- getter, setter에도 설정할 수 있음(단, getter의 수정자와 속성의 수정자가 일치하지 않으면 컴파일 에러 발생)
-- 클래스의 생성자에 설정할 경우, `class 클래스명 수정자 constructor (매개변수)`와 같이 작성
-- 속성과 메서드의 공개 상태를 엄격하게 유지하는 것이 이상적이므로, 최대한 자주 private를 사용할 것
-
-## 속성 위임
-
-- `var 변수명 by 위임객체`
-- 필드, getter, setter를 사용해 값을 관리하는 대신 위임을 통해 관리
-- setter 함수에 범위 확인 코드를 재사용할 수 있음
-- 위임 클래스
+  - 람다 표현식의 결과를 key로 삼아 리스트를 맵으로 변환
 
   ```kotlin
-  class RangeRegulator(
-      initialValue: Int,
-      private val minValue: Int,
-      private val maxValue: Int
-  ) : ReadWriteProperty<Any?, Int> {
+  val groupedMenu = cookies.groupBy { it.softBaked }
 
-      var fieldData = initialValue
+  val softBakedMenu = groupedMenu[true] ?: listOf()
+  val crunchyMenu = groupedMenu[false] ?: listOf()
+  ```
 
-      override fun getValue(thisRef: Any?, property: KProperty<*>): Int {
-          return fieldData
-      }
+  - 반환 값의 유형을 변환할 수도 있음
+  - 두 개로 분할하기만 해야 하면 `partition()`을 사용해도 됨
 
-      override fun setValue(thisRef: Any?, property: KProperty<*>, value: Int) {
-          if (value in minValue..maxValue) {
-              fieldData = value
-          }
-      }
-  }
+- `fold(초깃값, 람다 표현식)`
 
+  - 컬렉션에서 단일 값을 생성
+  - 주로 총합을 계산하거나 평균을 구하는 등 작업에 사용
+  - 람다 표현식에 매개변수로 누산기(누계, 초깃값과 데이터 유형 동일), 컬렉션 요소 두 개가 추가됨
 
-  class SmartTvDevice(deviceName: String, deviceCategory: String) :
-    SmartDevice(name = deviceName, category = deviceCategory) {
-
-    override val deviceType = "Smart TV"
-
-    private var speakerVolume by RangeRegulator(initialValue = 2, minValue = 0, maxValue = 100)
-
-    private var channelNumber by RangeRegulator(initialValue = 1, minValue = 0, maxValue = 200)
+  ```kotlin
+  val totalPrice = cookies.fold(0.0) {total, cookie ->
+    total + cookie.price
   }
   ```
 
-  - var 유형의 경우 ReadWriteProperty 인터페이스를 구현하고, val 유형의 경우 ReadOnlyProperty 인터페이스를 구현
-  - `KProperty`: 선언된 속성을 나타내는 인터페이스, 위임된 속성의 메타데이터에 접근 가능
+  - reduce()와 동일하게 작동, 단 reduce()는 컬렉션의 첫 번째 요소가 초깃값
+  - 숫자 유형의 sum(), sumOf()도 있음
+
+- `sortedBy()`
+
+  - 정렬 기준으로 사용하려는 속성을 반환하는 람다 표현식을 작성하면 자연스러운 정렬 순서에 따라 정렬됨(문자열은 알파벳순, 숫자값은 오름차순)
+
+  ```kotlin
+  val alphabeticalMenu = cookies.sortedBy {
+    it.name
+  }
+  ```
+
+---
+
+# Generic
+
+- 클래스와 같은 데이터 유형이 속성 및 메서드와 함께 사용할 수 있는 알 수 없는 자리표시자 데이터 유형
+- `클래스 이름<Generic>(매개 변수)`와 같이 작성
+- 일반적으로 type의 약자인 T나 다른 대문자를 사용하지만 명확한 규칙은 없음
+
+```kotlin
+class Question<T>(
+    val questionText: String,
+    val answer: T,
+    val difficulty: String
+)
+```
+
+---
+
+# 확장
+
+- 기존 데이터 유형을 확장하여, 해당 데이터 유형의 일부인 것처럼 점 문법으로 접근할 수 있는 속성과 메서드를 추가하는 것
+- 다른 개발자에게 코드를 쉽게 보여줄 수 있음
+- 속성 확장: 데이터를 저장할 수 없어 get만 가능
+  ```kotlin
+  val Quiz.StudentProgress.progressText: String
+    get() = "${answered} of ${total} answered"
+  ```
+- 함수 확장
+  ```kotlin
+  fun Quiz.StudentProgress.printProgressBar() {
+    repeat(Quiz.answered) { print("O") }
+    repeat(Quiz.total - Quiz.answered) { print("X") }
+    println()
+    println(Quiz.progressText)
+  }
+  ```
 
 ---
 
