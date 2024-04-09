@@ -58,6 +58,102 @@
   - 기본적으로 스크롤도 제공함
   - `items()`로 항목을 추가
 
+## Scaffold & TopAppBar
+
+- 다양한 구성요소와 TopAppBar를 포함한 화면 요소의 슬롯을 제공하는 레이아웃
+  - TopAppBar: 앱에 브랜딩과 개성을 적용하는 용도 등 다양하게 사용 가능, center, small, medium, large 4가지 유형이 있음
+- `contentWindowInsets`: 콘텐츠의 inset을 지정하는 데 도움이 되는 PaddingValues 데이터 유형의 매개변수, 화면에서 앱이 시스템 UI와 교차할 수 있는 부분이므로 내부 콘텐츠에 padding을 추가하는 게 좋음
+
+```kotlin
+@Composable
+fun WoofApp() {
+    Scaffold(
+        topBar = {
+            WoofTopAppBar()
+        }
+    ) { it ->
+        LazyColumn(contentPadding = it) {
+            items(dogs) {
+                DogItem(
+                    dog = it,
+                    modifier = Modifier.padding(dimensionResource(id = R.dimen.padding_small))
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WoofTopAppBar(modifier: Modifier = Modifier) {
+    CenterAlignedTopAppBar(
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    modifier = Modifier
+                        .size(dimensionResource(id = R.dimen.image_size))
+                        .padding(dimensionResource(id = R.dimen.padding_small)),
+                    painter = painterResource(R.drawable.ic_woof_logo),
+                    contentDescription = null
+                )
+
+                Text(
+                    text = stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.displayLarge
+                )
+            }
+        },
+        modifier = modifier
+    )
+}
+```
+
+## 애니메이션
+
+- 앱에 일어나고 있는 일을 사용자에게 알려주는 시각적 단서를 추가할 수 있음
+- `Modifier.animateContentSize()`로 크기 변경 시 애니메이션 추가
+
+  - animationSpec 값으로 spring 애니메이션 추가
+  - spring 애니메이션
+    - 스프링력에 기반한 물리학 기반 애니메이션
+    - dampingRatio: 감쇠비, 스프링의 탄성 정도
+    - stiffness: 강도 수준, 스프링이 끝까지 이동하는 속도
+
+  ```kotlin
+  Column(
+      modifier = Modifier.animateContentSize(
+          animationSpec = spring(
+              dampingRatio = Spring.DampingRatioNoBouncy,
+              stiffness = Spring.StiffnessMedium
+          )
+      )
+  ) {}
+  ```
+
+- `animate*AsState()`
+
+  - 단일 값을 애니메이션 처리하는 API
+  - 최종 값을 지정하면 API가 현재 값에서 지정 값으로 애니메이션을 시작함
+  - Float, Color, Dp, Size, Offset, Int 등 함수를 제공하고 animateValueAsState로 다른 데이터 유형도 지원함
+
+  ```kotlin
+  val color by animateColorAsState(
+      targetValue = if (expanded) MaterialTheme.colorScheme.tertiaryContainer
+      else MaterialTheme.colorScheme.primaryContainer,
+      label = ""
+  )
+
+  Column(
+      modifier = Modifier.animateContentSize(
+          animationSpec = spring(
+              dampingRatio = Spring.DampingRatioNoBouncy,
+              stiffness = Spring.StiffnessMedium
+          )
+      )
+          .background(color = color)
+  ) {}
+  ```
+
 ---
 
 # Compose의 상태

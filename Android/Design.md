@@ -43,3 +43,16 @@
 - 문자열 리소스를 사용하는 방법으로, 유형 안전성을 갖추고 있음
 - 다른 개발자나 Android Studio의 린트 등 코드 검사 도구에 유용함
 - 이외에도 @DrawableRes 등 다른 유형의 리소스를 위한 주석이 있음
+
+## dimens.xml
+
+- 크기 값을 저장하는 리소스 파일
+- `dimensionResource(id = R.dimen.padding_small)`과 같이 접근해서 사용
+
+```xml
+<resources>
+   <dimen name="padding_small">8dp</dimen>
+   <dimen name="padding_medium">16dp</dimen>
+   <dimen name="image_size">64dp</dimen>
+</resources>
+```

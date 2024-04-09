@@ -82,3 +82,30 @@ fun calculate_20_percent_tip() {
     )
 }
 ```
+
+---
+
+# 접근성 테스트
+
+- 장애가 있는 사용자 및 다른 접근성 기능이 필요한 사용자를 고려하여 사용자 환경을 개선하기 위해 접근성 테스트 필요
+
+## Android 접근성 도구 모음을 활용한 접근성 테스트
+
+1. 테스트를 진행할 기기에 Google Play 스토어에서 [Android 접근성 도구 모음](https://play.google.com/store/apps/details?id=com.google.android.marvin.talkback&hl=ko) 설치하고 테스트할 앱 설치
+2. 설정에서 TalkBack을 활성화하고 앱을 테스트
+   - TalkBack: 화면을 보지 않고도 기기를 탐색할 수 있도록 음성 피드백을 제공하는 구글 스크린 리더, 시각 장애인에게 유용
+3. 설정에서 스위치 제어를 활성화하고 앱을 테스트
+   - 스위치 제어: 터치스크린 대신 하나 이상의 스위치를 사용하여 기기와 상호작용 하는 기능, 수동기민성이 제한된 사용자에게 유용
+
+## UI 접근성 개선 방법
+
+- contentDescription
+  - 스크린 리더 등 접근성 서비스를 이용할 때 인터페이스 요소의 의미를 이해하기 위한 정보
+  - 장식적인 용도만을 위한 경우 null로 설정해도 됨
+- 터치 영역 크기
+  - 안정적으로 상호작용 하기 위한 최소 터치 영역 크기는 48dp \* 48dp
+- 색상 대비
+  - 충분한 고대비는 시각 장애인에게 도움이 될 뿐 아니라, 직사광선에 노출되었거나 어두운 곳에 있는 등 극단적인 채광 조건에서 기기를 볼 때 도움이 됨
+  - [Android 접근성 도움말 문서](https://support.google.com/accessibility/android/answer/7158390?hl=ko)
+  - [WebAIM](https://webaim.org/resources/contrastchecker/)에서 배경색과 전경색의 대비율을 테스트할 수 있음
+  - 작은 텍스트의 권장 비율은 4.5:1, 큰 텍스트의 경우 권장 비율은 3.0:1
