@@ -8,6 +8,12 @@
 - Android UI를 빌드하기 위해 사용하는 최신 툴킷
 - 적은 양의 코드, 강력한 도구 및 직관적인 Kotlin 기능으로 Android에서 UI 개발을 간소화하고 가속
 - 데이터를 받아서 UI 요소를 설명하는 Composable 함수 집합을 정의하여 UI를 빌드
+- 종속성 추가
+  - BOM(재료명세서): Compose 라이브러리 버전을 관리하는 데 권장되는 방법, BOM 버전만 지정하면 다른 Compose 라이브러리의 버전은 최신 안정화된 버전으로 자동으로 지정됨
+  ```kotlin
+  implementation(platform("androidx.compose:compose-bom:2023.06.01"))
+  implementation("androidx.compose.ui:ui")
+  ```
 
 ---
 
@@ -163,10 +169,139 @@ fun WoofTopAppBar(modifier: Modifier = Modifier) {
 - `MutableState`: Compose가 추적 가능한 상태, 읽기 및 쓰기 가능
 - `mutableStateOf`: 추적 가능한 MutableState 생성, 초깃값을 State에 래핑된 매개변수로 수신하고 value의 값을 관찰 가능한 상태로 만들어 리컴포지션을 발생시킴
 - `remember`: 계산된 값을 초기 컴포지션 중에 컴포지션에 저장하고 리컴포지션 중에 반환함
-- by로 remember에 속성을 위임하여 getter, setter 자동 적용
+  - by로 remember에 속성을 위임하여 getter, setter 자동 적용
+- `rememberSaveable`: 구성 변경 중에 상태를 유지
 
 ## 상태 호이스팅
 
 - 호이스팅이 필요한 상황: 상태를 여러 컴포저블이 공유하는 경우, 재사용할 수 있는 Stateless 컴포저블을 만드는 경우
 - 컴포저블이 가능한 한 적게 상태를 소유하고, 컴포저블의 API에 상태를 노출하여 상태를 호이스팅할 수 있도록 컴포저블을 디자인해야 함
 - 컴포저블에 value, onValueChange를 매개변수로 추가
+
+---
+
+# Navigation
+
+## Navigation 경로
+
+- URL과 유사하게, 대상(단일 Composable 혹은 Composable 그룹)에 매핑되어 고유한 식별자 역할을 하는 문자열
+- 앱의 화면 수가 한정되어 있는 것처럼 경로도 한정되어 있어 enum 클래스를 사용해 경로를 정의할 수 있음
+
+  ```kotlin
+  enum class CupcakeScreen(@StringRes val title: Int) {
+    Start(title = R.string.app_name),
+    Flavor(title = R.string.choose_flavor),
+    Pickup(title = R.string.choose_pickup_date),
+    Summary(title = R.string.order_summary)
+  }
+  ```
+
+## NavHost
+
+- NavGraph의 현재 대상을 표시하는 컨테이너 역할을 하는 Composable
+
+  ```kotlin
+  private fun cancelOrderAndNavigateToStart(
+      viewModel: OrderViewModel,
+      navController: NavHostController
+  ) {
+      viewModel.resetOrder()
+      navController.popBackStack(CupcakeScreen.Start.name, inclusive = false)
+  }
+
+  NavHost(
+      navController = navController,
+      startDestination = CupcakeScreen.Start.name,
+      modifier = Modifier.padding(innerPadding)
+  ) {
+      composable(route = CupcakeScreen.Start.name) {
+          StartOrderScreen(
+              quantityOptions = DataSource.quantityOptions,
+              onNextButtonClicked = {
+                  viewModel.setQuantity(it)
+                  navController.navigate(CupcakeScreen.Flavor.name)
+              },
+              modifier = Modifier
+                  .fillMaxSize()
+                  .padding(dimensionResource(R.dimen.padding_medium))
+          )
+      }
+      composable(route = CupcakeScreen.Flavor.name) {
+          val context = LocalContext.current
+          SelectOptionScreen(
+              subtotal = uiState.price,
+              onNextButtonClicked = { navController.navigate(CupcakeScreen.Pickup.name) },
+              onCancelButtonClicked = {
+                  cancelOrderAndNavigateToStart(viewModel, navController)
+              },
+              options = DataSource.flavors.map { id -> context.resources.getString(id) },
+              onSelectionChanged = { viewModel.setFlavor(it) },
+              modifier = Modifier.fillMaxHeight()
+          )
+      }
+      composable(route = CupcakeScreen.Pickup.name) {
+          SelectOptionScreen(
+              subtotal = uiState.price,
+              onNextButtonClicked = { navController.navigate(CupcakeScreen.Summary.name) },
+              onCancelButtonClicked = {
+                  cancelOrderAndNavigateToStart(viewModel, navController)
+              },
+              options = uiState.pickupOptions,
+              onSelectionChanged = { viewModel.setDate(it) },
+              modifier = Modifier.fillMaxHeight()
+          )
+      }
+      composable(route = CupcakeScreen.Summary.name) {
+          OrderSummaryScreen(
+              orderUiState = uiState,
+              onCancelButtonClicked = {
+                  cancelOrderAndNavigateToStart(viewModel, navController)
+              },
+              onSendButtonClicked = { subject: String, summary: String ->
+                  val intent = Intent(Intent.ACTION_SEND).apply {
+                      type = "text/plain"
+                      putExtra(Intent.EXTRA_SUBJECT, subject)
+                      putExtra(Intent.EXTRA_TEXT, summary)
+                  }
+                  context.startActivity(
+                      Intent.createChooser(
+                          intent,
+                          context.getString(R.string.new_cupcake_order)
+                      )
+                  )
+              },
+              modifier = Modifier.fillMaxHeight()
+          )
+      }
+  }
+  ```
+
+- navController: NavHostController 클래스의 인스턴스, Composable 함수에서 `rememberNavController()`를 호출하여 가져올 수 있음
+  - `navigate(route)`: 경로에 해당하는 화면으로 이동
+  - `popBackStack(route, inclusive)`: 경로에 해당하는 화면으로 돌아감, inclusive가 false인 경우 시작 대상 위의 모든 대상을 삭제함
+- startDestination: NavHost를 처음 표시할 때 기본적으로 표시되는 대상을 정의
+
+## NavController
+
+- 앱 화면 간 이동 담당
+- BackStack
+
+  - startDestination부터 최상단 화면까지의 화면 기록
+
+  ```kotlin
+  val backStackEntry by navController.currentBackStackEntryAsState()
+
+  val currentScreen = CupcakeScreen.valueOf(
+      backStackEntry?.destination?.route ?: CupcakeScreen.Start.name
+  )
+
+  CupcakeAppBar(
+      currentScreen = currentScreen,
+      canNavigateBack = navController.previousBackStackEntry != null,
+      navigateUp = { navController.navigateUp() }
+  )
+  ```
+
+## NavGraph
+
+- 이동할 Composable 대상 매핑
