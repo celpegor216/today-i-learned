@@ -265,6 +265,99 @@
 
   ```
 
+- 반응형 UI
+
+  1. Composable에 testTag 속성을 지정해서 요소 구별
+
+  ```kotlin
+  val bottomNavigationContentDescription = stringResource(R.string.navigation_bottom)
+  ReplyBottomNavigationBar(
+      modifier = Modifier.testTag(bottomNavigationContentDescription)
+  )
+  ```
+
+  2. 화면 크기 별 주석 생성
+
+  ```kotlin
+  annotation class TestCompactWidth
+  annotation class TestMediumWidth
+  annotation class TestExpandedWidth
+  ```
+
+  3. 화면 크기 별 테스트 함수 작성
+
+  ```kotlin
+  class ReplyAppTest {
+      @get:Rule
+      val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+
+      @Test
+      @TestCompactWidth
+      fun compactDevice_verifyUsingBottomNavigation() {
+          composeTestRule.setContent {
+              ReplyApp(
+                  windowSize = WindowWidthSizeClass.Compact
+              )
+          }
+
+          composeTestRule.onNodeWithTagForStringId(
+              R.string.navigation_bottom
+          ).assertExists()
+      }
+  }
+  ```
+
+  4. 화면 크기 별 구성 변경 테스트 함수 작성
+
+  ```kotlin
+  @Test
+  @TestCompactWidth
+  fun compactDevice_selectedEmailEmailRetained_afterConfigChange() {
+      val stateRestorationTester = StateRestorationTester(composeTestRule)
+      stateRestorationTester.setContent {
+          ReplyApp(windowSize = WindowWidthSizeClass.Compact)
+      }
+
+      // 3번째 이메일이 표시되어 있는지 확인
+      composeTestRule.onNodeWithText(
+          composeTestRule.activity.getString(LocalEmailsDataProvider.allEmails[2].body)
+      ).assertIsDisplayed()
+
+      // 3번째 이메일 클릭해서 상세 페이지로 이동
+      composeTestRule.onNodeWithText(
+          composeTestRule.activity.getString(LocalEmailsDataProvider.allEmails[2].subject)
+      ).performClick()
+
+
+      // 3번째 이메일의 상세 페이지로 이동했는지 확인
+      composeTestRule.onNodeWithContentDescriptionForStringId(
+          R.string.navigation_back
+      ).assertExists()
+      composeTestRule.onNodeWithText(
+          composeTestRule.activity.getString(LocalEmailsDataProvider.allEmails[2].body)
+      ).assertExists()
+
+
+      // 구성 변경 실행
+      stateRestorationTester.emulateSavedInstanceStateRestore()
+
+      // 이전과 동일하게 3번째 이메일이 표시되어 있는지 확인
+      composeTestRule.onNodeWithContentDescriptionForStringId(
+          R.string.navigation_back
+      ).assertExists()
+      composeTestRule.onNodeWithText(
+          composeTestRule.activity.getString(LocalEmailsDataProvider.allEmails[2].body)
+      ).assertExists()
+  }
+  ```
+
+  5. 화면 크기 별 주석에 따라 테스트 실행
+     1. Run > Edit Configurations 선택
+     2. All in Package 선택
+     3. Instrumentation arguments 오른쪽 `...` 클릭
+     4. Name은 `annotation`, Value는 `com.example.reply.test.TestCompactWidth`인 매개변수 추가
+     5. 해당하는 화면 크기의 기기에서 테스트 실행
+
 ---
 
 # 접근성 테스트

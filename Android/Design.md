@@ -56,3 +56,223 @@
    <dimen name="image_size">64dp</dimen>
 </resources>
 ```
+
+---
+
+# 반응형 앱 디자인
+
+- 에뮬레이터 생성 시 Resizable 기기를 선택하면 크기를 변경해서 테스트할 수 있음
+
+## 중단점(Breakpoint)
+
+- Material 디자인의 중단점 종류
+  | | width | height |
+  | - | - | - |
+  | Compact(Phone) | ~ 599dp | ~ 479dp |
+  | Medium(Foldable, Small tablet) | 600dp ~ 839dp | 480dp ~ 899dp |
+  | Expanded(Large tablet) | 840dp ~ | 900dp ~ |
+
+- Compose의 WindowSizeClass API를 사용한 중단점 구현
+
+  1. 종속성 추가
+
+  ```kotlin
+  "androidx.compose.material3:material3-window-size-class:$material3_version"
+  ```
+
+  2. MainActivity에서 windowSize를 app 생성 시 전달
+
+  ```kotlin
+  // 버전 문제로 오류 발생 시 onCreate() 메서드에 주석 추가
+  ReplyTheme {
+      val windowSize = calculateWindowSizeClass(this)
+      ReplyApp(windowSize = windowSize.widthSizeClass)
+  }
+  ```
+
+  3. app에서 windowSize를 기준으로 화면 표시
+
+  ```kotlin
+  @Composable
+  fun ReplyApp(
+      windowSize: WindowWidthSizeClass,
+      modifier: Modifier = Modifier
+  ) {
+      when (windowSize) {
+          WindowWidthSizeClass.Compact -> {}
+          WindowWidthSizeClass.Medium -> {}
+          WindowWidthSizeClass.Expanded -> {}
+          else -> {}
+      }
+  }
+  ```
+
+  4. preview의 경우 값 지정
+
+  ```kotlin
+  @Preview(showBackground = true, widthDp = 1000)
+  @Composable
+  fun ReplyAppExpandedPreview() {
+      ReplyTheme {
+          Surface {
+              ReplyApp(windowSize = WindowWidthSizeClass.Expanded)
+          }
+      }
+  }
+  ```
+
+## 중단점에 따른 Navigation Menu 구현
+
+- Compact: [Bottom Navigation Bar](https://developer.android.com/static/codelabs/basic-android-kotlin-compose-adaptive-navigation-for-large-screens/img/8bc57664775332fe.png?hl=ko)
+- Medium: [Navigation Rail](https://developer.android.com/static/codelabs/basic-android-kotlin-compose-adaptive-navigation-for-large-screens/img/fdb4e7b5bd686ba8.png?hl=ko)
+- Expanded: [Persistent Navigation Drawer](https://developer.android.com/static/codelabs/basic-android-kotlin-compose-adaptive-navigation-for-large-screens/img/d5c215bae68b12f9.png?hl=ko)
+
+1. Navigation Menu 종류를 나타내는 enum 클래스 생성
+
+```kotlin
+enum class ReplyNavigationType {
+    BOTTOM_NAVIGATION, NAVIGATION_RAIL, PERMANENT_NAVIGATION_DRAWER
+}
+
+enum class ReplyContentType {
+    LIST_ONLY, LIST_AND_DETAIL
+}
+```
+
+2. app에 navigationType 변수를 만들고 windowSize를 기준으로 값 할당
+
+```kotlin
+val navigationType: ReplyNavigationType
+val contentType: ReplyContentType
+
+when (windowSize) {
+    WindowWidthSizeClass.Compact -> {
+        navigationType = ReplyNavigationType.BOTTOM_NAVIGATION
+        contentType = ReplyContentType.LIST_ONLY
+    }
+    WindowWidthSizeClass.Medium -> {
+        navigationType = ReplyNavigationType.NAVIGATION_RAIL
+        contentType = ReplyContentType.LIST_ONLY
+    }
+    WindowWidthSizeClass.Expanded -> {
+        navigationType = ReplyNavigationType.PERMANENT_NAVIGATION_DRAWER
+        contentType = ReplyContentType.LIST_AND_DETAIL
+    }
+    else -> {
+        navigationType = ReplyNavigationType.BOTTOM_NAVIGATION
+        contentType = ReplyContentType.LIST_ONLY
+    }
+}
+```
+
+3. home screen에서 navigationType을 전달받아 PermanentNavigationDrawer 표시 여부 확인
+
+```kotlin
+// PermanentNavigationDrawer API를 사용하기 위해 필요한 주석
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReplyHomeScreen(
+    navigationType: ReplyNavigationType,
+    contentType: ReplyContentType,
+    replyUiState: ReplyUiState,
+    onTabPressed: (MailboxType) -> Unit,
+    onEmailCardPressed: (Email) -> Unit,
+    onDetailScreenBackPressed: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (navigationType == ReplyNavigationType.PERMANENT_NAVIGATION_DRAWER) {
+        PermanentNavigationDrawer(
+            drawerContent = {
+                NavigationDrawerContent(
+                    selectedDestination = replyUiState.currentMailbox,
+                    onTabPressed = onTabPressed,
+                    navigationItemContentList = navigationItemContentList
+                )
+            }
+        ) {
+            ReplyAppContent(
+                navigationType: ReplyNavigationType,
+                contentType: ReplyContentType,
+                replyUiState = replyUiState,
+                onTabPressed = onTabPressed,
+                onEmailCardPressed = onEmailCardPressed,
+                navigationItemContentList = navigationItemContentList,
+                modifier = modifier
+            )
+        }
+    } else {
+        if (replyUiState.isShowingHomepage) {
+            ReplyAppContent(
+                navigationType: ReplyNavigationType,
+                contentType: ReplyContentType,
+                replyUiState = replyUiState,
+                onTabPressed = onTabPressed,
+                onEmailCardPressed = onEmailCardPressed,
+                navigationItemContentList = navigationItemContentList,
+                modifier = modifier
+            )
+        } else {
+            ReplyDetailsScreen(
+                replyUiState = replyUiState,
+                onBackPressed = onDetailScreenBackPressed,
+                modifier = modifier
+            )
+        }
+    }
+}
+```
+
+4. app content에서 navigationType을 전달받아 NavigationRail 표시 여부 확인
+
+```kotlin
+@Composable
+private fun ReplyAppContent(
+    navigationType: ReplyNavigationType,
+    contentType: ReplyContentType,
+    replyUiState: ReplyUiState,
+    onTabPressed: ((MailboxType) -> Unit) = {},
+    onEmailCardPressed: (Email) -> Unit = {},
+    navigationItemContentList: List<NavigationItemContent>,
+    modifier: Modifier = Modifier
+) {
+    Row(modifier = modifier.fillMaxSize()) {
+        AnimatedVisibility(visible = navigationType == ReplyNavigationType.NAVIGATION_RAIL) {
+            ReplyNavigationRail(
+                currentTab = replyUiState.currentMailbox,
+                onTabPressed = onTabPressed,
+                navigationItemContentList = navigationItemContentList
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.inverseOnSurface)
+        ) {
+            if (contentType == ReplyContentType.LIST_AND_DETAIL) {
+                ReplyListAndDetailContent(
+                    replyUiState = replyUiState,
+                    onEmailCardPressed = onEmailCardPressed,
+                    modifier = Modifier.weight(1f)
+                )
+            } else {
+                ReplyListOnlyContent(
+                    replyUiState = replyUiState,
+                    onEmailCardPressed = onEmailCardPressed,
+                    modifier = Modifier.weight(1f)
+                        .padding(
+                            horizontal = dimensionResource(R.dimen.email_list_only_horizontal_padding)
+                        )
+                )
+            }
+            AnimatedVisibility(visible = navigationType == ReplyNavigationType.BOTTOM_NAVIGATION) {
+                ReplyBottomNavigationBar(
+                    currentTab = replyUiState.currentMailbox,
+                    onTabPressed = onTabPressed,
+                    navigationItemContentList = navigationItemContentList
+                )
+            }
+        }
+    }
+}
+```
